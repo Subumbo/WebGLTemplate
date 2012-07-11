@@ -1,0 +1,194 @@
+<!doctype html>
+<html>
+	<head>
+		<meta charset="utf-8" />
+		<title>WebGL Template</title>
+		<style>
+			#container {
+				background: #000;
+				width: 400px;
+				height: 300px;
+			}
+		</style>
+	</head>
+	<body>
+		
+		<div id="container">
+			
+			
+		</div>
+		
+	</body>
+	<!-- Shaders -->
+	<script type="x-shader/x-vertex" id="vertexshader">
+		
+		// switch on high precision floats
+		#ifdef GL_ES
+		precision highp float;
+		#endif
+		
+		
+		uniform float amplitude;
+		
+		attribute float displacement;
+		
+		
+		
+		
+		uniform vec3 ec_light_dir; 
+		
+		
+		varying float v_diffuse;
+		varying vec2 v_textcoord;
+
+		void main() {
+
+			vec3 ec_normal = normalize(normalMatrix * normal);
+			
+			v_diffuse = max(dot(ec_light_dir, ec_normal), 0.0);
+			v_textcoord = uv; 
+			
+
+
+			vec3 newPosition = position + 
+							   normal * 
+							   vec3(displacement *
+									amplitude);
+
+			gl_Position = projectionMatrix *
+						  modelViewMatrix *
+						  vec4(newPosition,1.0);
+		}
+	</script>
+	
+	<script type="x-shader/x-fragment" id="fragmentshader">
+	
+		#ifdef GL_ES
+		precision highp float;
+		#endif
+		
+		uniform sampler2D t_reflectance;
+		uniform vec4 i_ambient;
+		
+		varying float v_diffuse;
+		varying vec2 v_textcoord;
+
+		void main() {
+
+			vec4 color = texture2D(t_reflectance, v_textcoord);
+			gl_FragColor = color * (vec4(v_diffuse) + i_ambient); 
+		}
+	
+	</script>
+	
+	<!-- End Shaders -->
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.5.1/jquery.min.js"></script>
+	<script src="js/Three.js"></script>
+	
+	<script type="text/javascript">
+	
+	// @see http://paulirish.com/2011/requestanimationframe-for-smart-animating/
+	window.requestAnimFrame = (function(){
+      return  window.requestAnimationFrame       || 
+              window.webkitRequestAnimationFrame || 
+              window.mozRequestAnimationFrame    || 
+              window.oRequestAnimationFrame      || 
+              window.msRequestAnimationFrame     || 
+              function(/* function */ callback, /* DOMElement */ element){
+                window.setTimeout(callback, 1000 / 60);
+              };
+    })();
+	// set the scene size
+	var WIDTH = 400,
+	    HEIGHT = 300;
+	
+	// set some camera attributes
+	var VIEW_ANGLE = 45,
+	    ASPECT = WIDTH / HEIGHT,
+	    NEAR = 0.1,
+	    FAR = 10000;
+	
+	// get the DOM element to attach to
+	// - assume we've got jQuery to hand
+	var $container = $('#container');
+	
+	// create a WebGL renderer, camera
+	// and a scene
+	var renderer = new THREE.WebGLRenderer();
+	var camera = new THREE.Camera(  VIEW_ANGLE,
+	                                ASPECT,
+	                                NEAR,
+	                                FAR  );
+	var scene = new THREE.Scene();
+	
+	// the camera starts at 0,0,0 so pull it back
+	camera.position.z = 300;
+	
+	// start the renderer
+	renderer.setSize(WIDTH, HEIGHT);
+	
+	// attach the render-supplied DOM element
+	$container.append(renderer.domElement);
+	
+	var attributes = {
+		displacement: {
+			type: 'f', // a float
+			value: [] // an empty array
+		}
+	};
+	
+	
+	
+	var uniforms = {
+		amplitude: {
+			type: 'f', // a float
+			value: 0
+		},
+		i_ambient : {type:'v4', value:new THREE.Vector4(0.5,0.5,0.5,0.5) },
+		ec_light_dir: {type:"v3", value: new THREE.Vector3(0.0,10.0,1.0)},
+		t_reflectance: { type: "t", value: 0, texture: THREE.ImageUtils.loadTexture( "Australia.gif" ) }
+	};
+	
+	// create the sphere's material
+	var shaderMaterial = new THREE.MeshShaderMaterial({
+		uniforms:     	uniforms,
+		attributes:     attributes,
+		vertexShader:   $('#vertexshader').text(),
+		fragmentShader: $('#fragmentshader').text()
+	});
+	
+	// set up the sphere vars
+	var radius = 50, segments = 16, rings = 16;
+	
+	// create a new mesh with sphere geometry -
+	// we will cover the sphereMaterial next!
+	var sphere = new THREE.Mesh(
+	   new THREE.Plane(100, 100, 10,10),
+	   shaderMaterial);
+	   
+	// now populate the array of attributes
+	var vertices = sphere.geometry.vertices;
+	var values = attributes.displacement.value
+	for(var v = 0; v < vertices.length; v++) {
+		values.push(Math.random() * 100);
+	}
+	
+	// add the sphere to the scene
+	scene.addChild(sphere);
+	
+	var frame = 0;
+	
+	// draw!
+	function update() {
+	
+		uniforms.amplitude.value = Math.sin(frame);
+		frame += 0.1;
+	
+		renderer.render(scene, camera);
+		
+		// set up the next call
+		requestAnimFrame(update);
+	}
+	requestAnimFrame(update);
+	</script>
+</html>
